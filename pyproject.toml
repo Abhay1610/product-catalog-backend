@@ -1,0 +1,26 @@
+[tool.poetry]
+name = "product-catalog-backend"
+version = "0.1.0"
+description = ""
+authors = ["Abhay1610 <abhay.k@datalabscorp.com>"]
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = "^3.10"  # Adjust based on your Python version
+fastapi = "^0.95.0"  # FastAPI framework
+sqlalchemy = "^2.0.3"  # SQL toolkit and ORM
+celery = "^5.2.7"  # Celery for background task processing
+redis = "^5.1.1"
+kombu = "^5.4.2"
+requests = "^2.32.3"
+python-keycloak = "^4.6.2"
+
+[tool.poetry.dev-dependencies]
+black = "^22.3.0"  # Code formatter for Python
+pytest = "^7.1.0"  # Testing framework
+mypy = "^0.910"  # Optional type checker for Python
+flake8 = "^4.0.1"  # Linter for style guide enforcement
+
+[build-system]
+requires = ["poetry-core>=1.0.0"]
+build-backend = "poetry.core.masonry.api"
