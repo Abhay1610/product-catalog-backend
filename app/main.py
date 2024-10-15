@@ -6,6 +6,7 @@ from app.models.product import Product
 from app.schemas.product import ProductCreate, ProductResponse
 from app.tasks.tasks import add_to_catalog
 from app.routes.auth import router as auth_router  # Import the new auth router
+from app.utils.authentication import authenticate_user
 
 app = FastAPI()
 
