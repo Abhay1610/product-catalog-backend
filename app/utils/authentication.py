@@ -38,11 +38,59 @@ def get_products(username: str, password: str):
     except Exception as e:
         print(e)
 
+# Function to retrieve the user profile
+def get_user_profile(token: str):
+    try:
+        user_info_url = "http://your-keycloak-server/auth/realms/your-realm/protocol/openid-connect/userinfo"  # Update with your Keycloak user info URL
+        headers = {
+            'Authorization': f'Bearer {token}'
+        }
+        
+        response = requests.get(user_info_url, headers=headers)
+        
+        if response.status_code == 200:
+            return response.json()  # User profile information
+        else:
+            raise Exception("Failed to retrieve user profile: " + response.text)
+    
+    except Exception as e:
+        print(e)
+
+# Function to log out the user
+def logout_user(token: str):
+    try:
+        logout_url = "http://your-keycloak-server/auth/realms/your-realm/protocol/openid-connect/logout"  # Update with your Keycloak logout URL
+        headers = {
+            'Authorization': f'Bearer {token}'
+        }
+        
+        response = requests.post(logout_url, headers=headers)
+        
+        if response.status_code == 204:
+            return {"message": "Logout successful"}
+        else:
+            raise Exception("Failed to logout user: " + response.text)
+    
+    except Exception as e:
+        print(e)
+
 # Example usage
 if __name__ == "__main__":
     username = "your-username"  # Update with your Keycloak username
     password = "your-password"    # Update with your Keycloak password
-    products = get_products(username, password)
 
+    # Get products
+    products = get_products(username, password)
     if products:
         print("Retrieved products:", products)
+
+    # Get user profile
+    token = authenticate_user(username, password)  # You can reuse the authentication
+    profile = get_user_profile(token)
+    if profile:
+        print("User profile:", profile)
+
+    # Logout user
+    logout_response = logout_user(token)
+    if logout_response:
+        print(logout_response)

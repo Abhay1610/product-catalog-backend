@@ -7,13 +7,15 @@ readme = "README.md"
 
 [tool.poetry.dependencies]
 python = "^3.10"  # Adjust based on your Python version
-fastapi = "^0.95.0"  # FastAPI framework
+fastapi = {extras = ["all"], version = "^0.115.2"}  # FastAPI framework
 sqlalchemy = "^2.0.3"  # SQL toolkit and ORM
 celery = "^5.2.7"  # Celery for background task processing
 redis = "^5.1.1"
 kombu = "^5.4.2"
 requests = "^2.32.3"
-python-keycloak = "^4.6.2"
+python-keycloak = "4.2.0"
+psycopg2-binary = "^2.9.9"
+alembic = "^1.13.3"
 
 [tool.poetry.dev-dependencies]
 black = "^22.3.0"  # Code formatter for Python
