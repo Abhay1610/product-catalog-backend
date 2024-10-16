@@ -18,3 +18,11 @@ def init_db():
         print("Database initialized successfully.")
     except Exception as e:
         print(f"Error initializing the database: {e}")
+
+# Function to get a new database session
+def get_db():
+    db = SessionLocal()
+    try:
+        yield db
+    finally:
+        db.close()

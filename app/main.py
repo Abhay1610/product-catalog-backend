@@ -1,20 +1,22 @@
-from fastapi import FastAPI, Depends, HTTPException
+from fastapi import FastAPI, Depends, HTTPException, Body, Request
 from sqlalchemy.orm import Session
 from keycloak import KeycloakOpenID
 from .database import SessionLocal
 from app.models.product import Product
 from app.schemas.product import ProductCreate, ProductResponse
 from app.tasks.tasks import add_to_catalog
-from app.routes.auth import router as auth_router  # Import the new auth router
-from app.utils.authentication import authenticate_user
+from app.routes.auth import router as auth_router
+from fastapi.security import OAuth2PasswordBearer
+from jose import JWTError
+from app.utils.authentication import authenticate_user, verify_token, get_user_profile, logout_user
 
 app = FastAPI()
 
 # Initialize Keycloak client
 keycloak_openid = KeycloakOpenID(
-    server_url="http://localhost:8080/auth/",
-    client_id="my-app",  # Replace with your Keycloak client ID
-    realm_name="my-realm"  # Replace with your Keycloak realm
+    server_url="http://localhost:8080/",
+    client_id="my-app",
+    realm_name="my-realm"
 )
 
 # Database Dependency
@@ -25,42 +27,62 @@ def get_db():
     finally:
         db.close()
 
-# Create a product (with database commit and then Celery task)
+# OAuth2 Password Bearer
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="auth/login")
+
+@app.post("/auth/login")
+async def login(username: str = Body(...), password: str = Body(...)):
+    try:
+        access_token = authenticate_user(username, password)
+        return {"access_token": access_token}
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+@app.get("/auth/callback")
+async def auth_callback(request: Request):
+    # Get the authorization code from the query parameters
+    code = request.query_params.get("code")
+    
+    if not code:
+        raise HTTPException(status_code=400, detail="Authorization code not found")
+    
+    # Use the authorization code to obtain the access token
+    try:
+        token_response = keycloak_openid.token(code=code)
+        access_token = token_response.get("access_token")
+        refresh_token = token_response.get("refresh_token")
+
+        # Optionally, you can retrieve user profile information here
+        user_info = get_user_profile(access_token)
+
+        return {
+            "access_token": access_token,
+            "refresh_token": refresh_token,
+            "user_info": user_info
+        }
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+# Create a product
 @app.post("/products/", response_model=ProductResponse)
 def create_product(product: ProductCreate, db: Session = Depends(get_db)):
-    # Create a new product instance
     new_product = Product(
         name=product.name,
         description=product.description,
         price=product.price
     )
     
-    # Add to the database and commit
     db.add(new_product)
     db.commit()
-    db.refresh(new_product)  # Refresh to get the generated ID
-    
-    # Trigger the Celery task to perform any additional background work
+    db.refresh(new_product)
     add_to_catalog.delay(new_product.id)
 
-    # Return the newly created product
     return new_product
 
-# Get a product by ID (no authentication required)
-@app.get("/products/{product_id}", response_model=ProductResponse)
-def read_product(product_id: int, db: Session = Depends(get_db)):
-    db_product = db.query(Product).filter(Product.id == product_id).first()
-    if db_product is None:
-        raise HTTPException(status_code=404, detail="Product not found")
-    return db_product
-
-# Protected route to list all products (requires Keycloak authentication)
 @app.get("/products/protected/", response_model=list[ProductResponse])
-def get_products(username: str, password: str, db: Session = Depends(get_db)):
-    # Authenticate user and get token
-    access_token = authenticate_user(username, password)
-    
-    # Here, you can add any further token validation if needed
+def get_products(token: str = Depends(oauth2_scheme), db: Session = Depends(get_db)):
+    print("Accessing protected products endpoint")  
+    verify_token(token)
     return db.query(Product).all()
 
 # Include the authentication routes
