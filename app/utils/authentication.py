@@ -25,14 +25,25 @@ def authenticate_user(username: str, password: str):
     else:
         raise Exception("Authentication failed: " + response.text)
 
-# Function to verify the token
-def verify_token(token: str):
-    try:
-        # Decode the token (replace 'your-secret' with the appropriate key from Keycloak)
-        payload = jwt.decode(token, 'MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAy5vdv/XDqlAa+/z2J8NdlogWAA+1oDkSIl4ILmpoNy/WQQBVrmP44EHwBtdBip2dKFBCtw8xxUOS9GbNSCMdmcNzwyb+XXlop0h2aHZOr1VQmMhUgSwuJWsS200V1gDk+p2i1O8VPTYF8ibPfvVbOZh1thx4LTdlKlEhancr9rDFsgrefdXgXkzYNkJGQhyPBVOgppxTv66B0NJL+ZwkLZV0ob/HhZOj/ZorQv9nX6z6ZYrZEeUF41ZHM9d7P6Us9gN8ln9S9EypryfRLQ/wM+aSt0JmozcglhVSS58xPJaeA63bUrZm4vgMHkcilqBAcEgdonjwpElX/ik6Keg6uQIDAQAB', algorithms=['RS256'])  
-        return payload  # Token is valid
-    except JWTError:
-        raise Exception("Invalid or expired token")
+# Function to introspect the token
+def introspect_token(token: str):
+    introspect_url = f"{KEYCLOAK_SERVER_URL}realms/{REALM_NAME}/protocol/openid-connect/token/introspect"
+    auth_data = {
+        'client_id': CLIENT_ID,
+        'client_secret': CLIENT_SECRET,
+        'token': token,
+    }
+    
+    response = requests.post(introspect_url, data=auth_data)
+    
+    if response.status_code == 200:
+        introspect_data = response.json()
+        if introspect_data.get('active'):
+            return introspect_data  # Token is valid and active
+        else:
+            raise Exception("Token is invalid or expired")
+    else:
+        raise Exception("Failed to introspect token: " + response.text)
 
 # Function to retrieve user profile information
 def get_user_profile(token: str):

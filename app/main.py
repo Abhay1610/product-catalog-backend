@@ -8,9 +8,19 @@ from app.tasks.tasks import add_to_catalog
 from app.routes.auth import router as auth_router
 from fastapi.security import OAuth2PasswordBearer
 from jose import JWTError
-from app.utils.authentication import authenticate_user, verify_token, get_user_profile, logout_user
+from app.utils.authentication import authenticate_user, introspect_token, get_user_profile, logout_user
+from fastapi.middleware.cors import CORSMiddleware  # Import CORS middleware
 
 app = FastAPI()
+
+# Configure CORS
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # Allows all origins, adjust as necessary
+    allow_credentials=True,
+    allow_methods=["*"],  # Allows all HTTP methods
+    allow_headers=["*"],  # Allows all headers
+)
 
 # Initialize Keycloak client
 keycloak_openid = KeycloakOpenID(
@@ -40,19 +50,16 @@ async def login(username: str = Body(...), password: str = Body(...)):
 
 @app.get("/auth/callback")
 async def auth_callback(request: Request):
-    # Get the authorization code from the query parameters
     code = request.query_params.get("code")
     
     if not code:
         raise HTTPException(status_code=400, detail="Authorization code not found")
     
-    # Use the authorization code to obtain the access token
     try:
         token_response = keycloak_openid.token(code=code)
         access_token = token_response.get("access_token")
         refresh_token = token_response.get("refresh_token")
 
-        # Optionally, you can retrieve user profile information here
         user_info = get_user_profile(access_token)
 
         return {
@@ -82,7 +89,14 @@ def create_product(product: ProductCreate, db: Session = Depends(get_db)):
 @app.get("/products/protected/", response_model=list[ProductResponse])
 def get_products(token: str = Depends(oauth2_scheme), db: Session = Depends(get_db)):
     print("Accessing protected products endpoint")  
-    verify_token(token)
+    try:
+        # Call introspect_token to validate the token
+        introspect_data = introspect_token(token)
+    except Exception as e:
+        raise HTTPException(status_code=401, detail=str(e))
+
+    print("Introspection Data:", introspect_data)
+
     return db.query(Product).all()
 
 # Include the authentication routes
